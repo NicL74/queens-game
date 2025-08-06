@@ -10,4 +10,4 @@ python3 -m venv queens-game
 Every other time, run a virtual environment:
 source queens-game/bin/activate
 
-pip install -r requirements.txt
+pip3 install -r requirements.txt
