@@ -20,6 +20,7 @@ class Game(object):
         self.entries_per_colour = np.zeros((board_size, 3), dtype=int)  # 3 columns for queens, crosses, and errors
         
     def load_board(self):
+        print("Loading predefined board state...")
         # Example board state for an 8x8 chessboard
         self.colour_map = np.array([[0, 0, 0, 1, 1, 1, 1, 1],
                                     [0, 2, 2, 2, 2, 1, 1, 1],
@@ -78,7 +79,6 @@ class Game(object):
         
     # Function to count haw many entries in the colour_map are equal to each value 0 to board_size-1
     def count_colours(self,print_counts=False):
-        print("Colour counts: ", self.colours_count)
         for i in range(board_size):
             for j in range(board_size):
                 if self.colour_map[i, j] < board_size:
@@ -90,6 +90,8 @@ class Game(object):
 
     # Function to count the number of queens on the board
     def count_entries(self,print_counts=False):
+        self.entries_count = [0, 0, 0] # Reset counts
+        # For each square in the queen_map, count the number of queens, crosses and errors
         for i in range(board_size):
             for j in range(board_size):
                 if self.queen_map[i, j] == 1:
@@ -99,11 +101,14 @@ class Game(object):
                 elif self.queen_map[i, j] == 3:
                     self.entries_count[2] += 1  # Invalid queens
         if print_counts:
-            print("Entries counts (queens, crosses, errors): ", self.colours_count)
+            print("Entries counts (queens, crosses, errors): ", self.entries_count)
         return  
 
     # Function to count the number of entries per colour
     def count_entries_per_colour(self,print_counts=False):   
+        # Reset the entries_per_colour array
+        self.entries_per_colour.fill(0)
+
         # For each colour, count the number of queens, crosses and errors
         for i in range(board_size):
             for j in range(board_size):
@@ -142,24 +147,39 @@ class Game(object):
             print("Final queen map after checking single queens per colour:\n", self.queen_map)
 
         return 
+    
+    def print_queen_map(self):
+        print("Queen Map:")
+        for row in self.queen_map:
+            print(' '.join(str(int(x)) for x in row))
+
+                
+    def print_colour_map(self):
+        print("Colour Map:")
+        for row in self.colour_map:
+            print(' '.join(str(int(x)) for x in row))
 
     # Main function to run the game logic
 def main():
     game1 = Game(8)  # Create a game instance with a board size of 8
-    # Initialize the board
+    
+    # Call entry counting function
+    game1.count_entries(print_counts=True)  # Count entries and print the counts
+    
+    # Load a predefined board
     game1.load_board()  # Load the predefined board state
     
     # Call colour counting method
     game1.count_colours(print_counts=True)  # Count colours and print the counts
     
-    # Call entry counting function
-    game1.count_entries(print_counts=True)  # Count entries and print the counts
+
     
     if(test == 1):
         # Set some example squares
         game1.set_square(0, 0, 1)  # Set square (0,0) to queen
         game1.set_square(1, 1, 2)  # Set square (1,1) to cross
         game1.set_square(2, 2, 3)  # Set square (2,2) to invalid queen   
+        game1.set_square(1, 5, 1)  # Set square (0,0) to queen
     
     # Call entry counting method
     game1.count_entries(print_counts=True)  # Count entries and print the counts
@@ -170,8 +190,15 @@ def main():
     # Call check for single queens per colour method
     game1.check_single_queen_per_colour()  # Check for single queens per colour and update the queen map
     
+    # Call count_entries_per_colour method    
+    game1.count_entries_per_colour(print_counts=True)  # Count entries per colour and print the counts
+    
     # Visualize the board state
     game1.visualize_board()  # Visualize the board with queens and crosses
+    
+    # Print the queen and colour maps
+    game1.print_queen_map()  # Print the queen map
+    game1.print_colour_map()  # Print the colour map
    
     
             
