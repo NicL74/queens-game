@@ -158,7 +158,8 @@ class Game(object):
             if np.all(self.colour_map[:, i] == self.colour_map[0, i]):
                 #print(f"Column {i} is completely filled with colour {self.colour_map[0, i]}")
                 result = np.vstack((result, ['col',i,self.colour_map[0, i]]))
-        if result.shape[0] > 1:
+        #print("result.shape: ",result.shape)
+        if result.shape[0] != 3: # i.e. if it has more than just the header ro
             return result[1:]  # Return the result excluding the header row
         else:
             return None
