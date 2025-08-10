@@ -148,11 +148,26 @@ class Game(object):
 
         return 
     
+    def check_for_full_row_or_column(self):
+        # Check for full rows or columns of colours_map to see if any row or column is completely filled with a single colour
+        result = np.array(['Type', 'Index', 'Colour'])
+        for i in range(board_size):
+            if np.all(self.colour_map[i, :] == self.colour_map[i, 0]):
+                #print(f"Row {i} is completely filled with colour {self.colour_map[i, 0]}")
+                result = np.vstack((result, ['row',i,self.colour_map[i, 0]]))
+            if np.all(self.colour_map[:, i] == self.colour_map[0, i]):
+                #print(f"Column {i} is completely filled with colour {self.colour_map[0, i]}")
+                result = np.vstack((result, ['col',i,self.colour_map[0, i]]))
+        if result.shape[0] > 1:
+            return result[1:]  # Return the result excluding the header row
+        else:
+            return None
+        
+     
     def print_queen_map(self):
         print("Queen Map:")
         for row in self.queen_map:
             print(' '.join(str(int(x)) for x in row))
-
                 
     def print_colour_map(self):
         print("Colour Map:")
@@ -186,6 +201,10 @@ def main():
     
     # Call count_entries_per_colour method    
     game1.count_entries_per_colour(print_counts=True)  # Count entries per colour and print the counts
+    
+    # Call check for full row or column method
+    result = game1.check_for_full_row_or_column()  # Check for full rows or columns
+    print("Result of full row or column check:\n", result)  # Print the result of the check
     
     # Call check for single queens per colour method
     game1.check_single_queen_per_colour()  # Check for single queens per colour and update the queen map
