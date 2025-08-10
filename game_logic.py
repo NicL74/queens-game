@@ -164,6 +164,36 @@ class Game(object):
         else:
             return None
         
+    def add_crosses_after_full_row_or_column(self):
+        # Check for full rows or columns of colours_map to see if any row or column is completely filled with a single colour
+        result = self.check_for_full_row_or_column()
+        if result is not None:
+            # Result can include at most one row and one column
+            for entry in result:
+                entry_type, index, colour = entry
+                #print("colour",colour)
+                #print(type(colour))
+                if entry_type == 'row':
+                    row = int(index)
+                    #print("row",row)
+                if entry_type == 'col':
+                    col = int(index)
+                    #print("col",col)
+
+            # Find all squares of the specified colour except for the row or column that is full
+            squares = np.argwhere(self.colour_map == int(colour))
+            #print("squares",squares)
+            for square in squares:
+                r, c = square
+                if entry_type == 'row' and r != row:
+                    if self.queen_map[r, c] == 0:  # Only set if the square is empty
+                        self.queen_map[r, c] = 2  # Set to cross state
+                if entry_type == 'col' and c != col:
+                    if self.queen_map[r, c] == 0:  # Only set if the square is empty
+                        self.queen_map[r, c] = 2  # Set to cross state
+        else:
+            pass
+        return
      
     def print_queen_map(self):
         print("Queen Map:")
@@ -192,10 +222,11 @@ def main():
     
     if(test == 1):
         # Set some example squares
-        game1.set_square(0, 0, 1)  # Set square (0,0) to queen
-        game1.set_square(1, 1, 2)  # Set square (1,1) to cross
-        game1.set_square(2, 2, 3)  # Set square (2,2) to invalid queen   
-        game1.set_square(1, 5, 1)  # Set square (0,0) to queen
+        #game1.set_square(0, 0, 1)  # Set square (0,0) to queen
+        #game1.set_square(1, 1, 2)  # Set square (1,1) to cross
+        #game1.set_square(2, 2, 3)  # Set square (2,2) to invalid queen   
+        #game1.set_square(1, 5, 1)  # Set square (0,0) to queen
+        pass
     
     # Call entry counting method
     game1.count_entries(print_counts=True)  # Count entries and print the counts
@@ -212,6 +243,9 @@ def main():
     
     # Call count_entries_per_colour method    
     game1.count_entries_per_colour(print_counts=True)  # Count entries per colour and print the counts
+    
+    # Call add_crosses_after_full_row_or_column method
+    game1.add_crosses_after_full_row_or_column()  # Add crosses after checking for full rows or columns
     
     # Visualize the board state
     game1.visualize_board()  # Visualize the board with queens and crosses
