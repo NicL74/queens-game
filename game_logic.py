@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import colour_maps  # Assuming colour_maps.py is in the same directory
 
 # Define some variables
 board_size = 8
@@ -22,14 +23,19 @@ class Game(object):
     def load_board(self):
         print("Loading predefined board state...")
         # Example board state for an 8x8 chessboard
-        self.colour_map = np.array([[0, 0, 0, 1, 1, 1, 1, 1],
-                                    [0, 2, 2, 2, 2, 1, 1, 1],
-                                    [0, 3, 3, 3, 2, 1, 1, 1],
-                                    [0, 3, 0, 2, 2, 2, 1, 1],
-                                    [0, 0, 0, 0, 2, 4, 4, 4],
-                                    [0, 5, 0, 0, 2, 6, 4, 6],
-                                    [5, 5, 0, 0, 2, 6, 6, 6],
-                                    [5, 5, 5, 5, 5, 6, 7, 6]])
+        self.colour_map = colour_maps.colour_map_8_1  # Load a predefined colour map
+        # If you want to use a different colour map, you can change this line
+        # For example, to use colour_map_8_2 or colour_map_8_3, you can uncomment the following lines:
+        self.colour_map = colour_maps.colour_map_8_2
+        self.colour_map = colour_maps.colour_map_8_3
+        # Convert the colour map to integers for consistency
+        self.colour_map = self.colour_map.astype(int)
+        # Initialize the queen map to zeros
+        # This will represent an empty board with no queens placed
+        # The queen map will be used to track the state of each square
+        # 0 = empty, 1 = queen, 2 = cross, 3 = invalid queen
+        # Here we initialize the queen_map to zeros, indicating no queens are placed
+        # This will be updated as the game progresses
         self.queen_map = np.zeros((board_size, board_size))
         return self.colour_map.astype(int), self.queen_map.astype(int)  
         
@@ -123,7 +129,38 @@ class Game(object):
         return  
 
     # Function to check which colours have only one queen and then add to every other square of that colour
-    def check_single_queen_per_colour(self,print_values=False):
+    def check_single_queen_per_colour(self,print_values=False): 
+        # Check if the queen_map is empty
+        #if np.all(self.queen_map == 0):
+        #    raise ValueError("Queen map is empty. Please load a board state first.")
+        
+        # Call count_entries_per_colour to get the counts
+        self.count_entries_per_colour(print_counts=print_values)        
+        # For each colour, check if it has only one queen
+        for colour_index in range(self.entries_per_colour.shape[0]):
+            queen_count = self.entries_per_colour[colour_index, 0]
+            if print_values:
+                print("Colour index: ", colour_index, " Count of queens: ", queen_count)
+            # If a colour has only one queen, set all other squares of that colour to cross state
+            if queen_count == 1:
+                # Find the squares of this colour
+                squares = np.argwhere(self.colour_map == colour_index)
+                for square in squares:
+                    row, col = square
+                    if self.queen_map[row, col] == 0:  # Only set if the square is empty
+                        self.queen_map[row, col] = 2  # Set to cross state
+        if print_values:
+            print("Final queen map after checking single queens per colour:\n", self.queen_map) 
+        return      
+        
+    # Function to fill in all crosses for a single queen just been added
+    def fill_in_crosses_for_single_queen(self, queen_location, print_values=False):
+        # Check if the queen_location is valid
+        if not isinstance(queen_location, tuple) or len(queen_location) != 2:
+            raise ValueError("Queen location must be a tuple of (row, col).")
+        row, col = queen_location
+        if not (0 <= row < board_size and 0 <= col < board_size):
+            raise ValueError("Row and column must be within the bounds of the board.")
         # Call count_entries_per_colour to get the counts
         counts = self.entries_per_colour
         
@@ -148,37 +185,78 @@ class Game(object):
 
         return 
     
-    def check_for_full_row_or_column(self):
+    def check_for_full_row_or_column(self, print_values=False):
         # Check for full rows or columns of colours_map to see if any row or column is completely filled with a single colour
         result = np.array(['Type', 'Index', 'Colour'])
         for i in range(board_size):
             if np.all(self.colour_map[i, :] == self.colour_map[i, 0]):
-                #print(f"Row {i} is completely filled with colour {self.colour_map[i, 0]}")
+                if print_values:
+                    print(f"Row {i} is completely filled with colour {self.colour_map[i, 0]}")
                 result = np.vstack((result, ['row',i,self.colour_map[i, 0]]))
             if np.all(self.colour_map[:, i] == self.colour_map[0, i]):
-                #print(f"Column {i} is completely filled with colour {self.colour_map[0, i]}")
+                if print_values:
+                    print(f"Column {i} is completely filled with colour {self.colour_map[0, i]}")
                 result = np.vstack((result, ['col',i,self.colour_map[0, i]]))
-        #print("result.shape: ",result.shape)
-        if result.shape[0] != 3: # i.e. if it has more than just the header ro
+        if print_values:
+            print("result.shape: ",result.shape)
+            print("result: ", result)
+        if result.shape != (3,): # i.e. if it has more than just the header row
             return result[1:]  # Return the result excluding the header row
         else:
             return None
+    
+    def fill_in_single_colour_squares(self):
+        # Set success flag
+        success = False
+        # Find all squares that are empty and have a single colour in the colour_map
+        for i in range(board_size):
+            for j in range(board_size):
+                if self.queen_map[i, j] == 0:
+                    # Check if the square has a single colour in the colour_map
+                    if np.sum(self.colour_map[i, j] == self.colour_map) == 1:
+                        self.queen_map[i, j] = 1  # Set to queen state
+                        success = True
+        return success
         
-    def add_crosses_after_full_row_or_column(self):
+    def add_crosses_after_full_row_or_column(self, print_values=False):
+        # Set success flag
+        success = False
         # Check for full rows or columns of colours_map to see if any row or column is completely filled with a single colour
         result = self.check_for_full_row_or_column()
         if result is not None:
             # Result can include at most one row and one column
+            row_present = False
+            col_present = False
+            row = None
+            col = None
+            colour = None
             for entry in result:
                 entry_type, index, colour = entry
                 #print("colour",colour)
                 #print(type(colour))
                 if entry_type == 'row':
                     row = int(index)
-                    #print("row",row)
+                    row_present = True
+                    if print_values:
+                        print("row", row)
                 if entry_type == 'col':
                     col = int(index)
-                    #print("col",col)
+                    col_present = True
+                    if print_values:
+                        print("col",    col)
+
+            # If result row and column are both present, we can fill in a queen at the intersection
+            if row_present and col_present:
+                if self.queen_map[row, col] == 0:  # Only set if the square is empty
+                    self.queen_map[row, col] = 1  # Set to queen state
+                    success = True
+                    # Call the check_single_queen_per_colour method to ensure only one queen per colour
+                    self.check_single_queen_per_colour(print_values=print_values)
+                    # Call the fill_in_crosses_for_single_queen method to fill in crosses for the single queen just been added
+                    self.fill_in_crosses_for_single_queen((row, col), print_values=print_values)
+                    if print_values:
+                        print(f"Added queen at ({row}, {col}) for colour {colour}")
+                    return success
 
             # Find all squares of the specified colour except for the row or column that is full
             squares = np.argwhere(self.colour_map == int(colour))
@@ -188,12 +266,14 @@ class Game(object):
                 if entry_type == 'row' and r != row:
                     if self.queen_map[r, c] == 0:  # Only set if the square is empty
                         self.queen_map[r, c] = 2  # Set to cross state
+                        success = True
                 if entry_type == 'col' and c != col:
                     if self.queen_map[r, c] == 0:  # Only set if the square is empty
                         self.queen_map[r, c] = 2  # Set to cross state
+                        success = True
         else:
             pass
-        return
+        return success
      
     def print_queen_map(self):
         print("Queen Map:")
@@ -235,7 +315,7 @@ def main():
     game1.count_entries_per_colour(print_counts=True)  # Count entries per colour and print the counts
     
     # Call check for full row or column method
-    result = game1.check_for_full_row_or_column()  # Check for full rows or columns
+    result = game1.check_for_full_row_or_column(print_values=True)  # Check for full rows or columns
     print("Result of full row or column check:\n", result)  # Print the result of the check
     
     # Call check for single queens per colour method
@@ -245,8 +325,13 @@ def main():
     game1.count_entries_per_colour(print_counts=True)  # Count entries per colour and print the counts
     
     # Call add_crosses_after_full_row_or_column method
-    game1.add_crosses_after_full_row_or_column()  # Add crosses after checking for full rows or columns
-    
+    success = game1.add_crosses_after_full_row_or_column(print_values=True)  # Add crosses after checking for full rows or columns
+    print ("Success of adding crosses after full row or column check: ", success)  # Print success status
+ 
+    # Call fill_in_single_colour_squares method
+    success = game1.fill_in_single_colour_squares()  # Fill in single colour squares
+    print("Success of filling in single colour squares: ", success)  # Print success status
+       
     # Visualize the board state
     game1.visualize_board()  # Visualize the board with queens and crosses
     
