@@ -82,9 +82,9 @@ class Game(object):
         plt.xticks(np.arange(board_size), np.arange(1, board_size + 1))
         plt.yticks(np.arange(board_size), np.arange(1, board_size + 1))
         plt.grid(False)
-        plt.ion()
+        #plt.ion()
         plt.show()  
-        plt.pause(1)
+        #plt.pause(1)
         
     # Function to count haw many entries in the colour_map are equal to each value 0 to board_size-1
     def count_colours(self,print_counts=False):
@@ -131,10 +131,10 @@ class Game(object):
             print("Entries counts per colour (queens, crosses, errors): ", self.entries_per_colour)
         return  
 
-    # Function to check which colours have only one queen and then add to every other square of that colour
-    def check_single_queen_per_colour(self,print_values=False): 
-        # Create array of row, col values for any queens added
-        queen_positions = []
+    # Function to check which colours have only one queen and then add a cross to every other square of that colour
+    def add_crosses_per_colour_if_single_queen(self,print_values=False): 
+        # Create a success flag
+        success = False
         # Check if the queen_map is empty
         #if np.all(self.queen_map == 0):
         #    raise ValueError("Queen map is empty. Please load a board state first.")
@@ -154,11 +154,11 @@ class Game(object):
                     row, col = square
                     if self.queen_map[row, col] == 0:  # Only set if the square is empty
                         self.queen_map[row, col] = 2  # Set to cross state
-                        queen_positions.append((row, col))
+                        success = True
         if print_values:
             print("Final queen map after checking single queens per colour:\n", self.queen_map) 
-        return queen_positions     
-        
+        return success
+
     # Function to fill in all crosses for a single queen just been added
     def fill_in_crosses_for_single_queen(self, queen_location, print_values=False):
         # Check if the queen_location is valid
@@ -210,8 +210,8 @@ class Game(object):
             return result[1:]  # Return the result excluding the header row
         else:
             return None
-    
-    def fill_in_single_colour_squares(self):
+
+    def fill_in_single_colour_squares(self, print_values=False):
         # Create array of row, col values for any queens added
         queen_positions = []
         # Find all squares that are empty and have a single colour in the colour_map
@@ -221,8 +221,9 @@ class Game(object):
                     # Check if the square has a single colour in the colour_map
                     if np.sum(self.colour_map[i, j] == self.colour_map) == 1:
                         self.queen_map[i, j] = 1  # Set to queen state
-                        success = True
                         queen_positions.append((i, j))
+                        if print_values:
+                            print(f"Added queen at ({i}, {j})")
         return queen_positions
     
         
@@ -311,6 +312,13 @@ class Game(object):
         return empty_squares.astype(int)
 
     def check_if_square_should_get_crossed(self, row, col, print_values=False):
+        # Check if any entry in that row of the queen_map is a queen
+        if np.any(self.queen_map[row, :] == 1) or np.any(self.queen_map[:, col] == 1):
+            return True
+        # Check if any square neighbouring that square of the queen_map is a queen
+        if np.any(self.queen_map[row-1:row+2, col-1:col+2] == 1):
+            return True
+
         # Get colour of current square
         my_colour = self.colour_map[row, col]
         # Create qkf_mask
@@ -421,24 +429,21 @@ def main():
     print("Result of full row or column check:\n", result)  # Print the result of the check
     
     # Call check for single queens per colour method
-    added_queens = game1.check_single_queen_per_colour(print_values=True)  # Check for single queens per colour and update the queen map
+    added_queens = game1.fill_in_single_colour_squares(print_values=True)  # Check for single queens per colour and update the queen map
     print("Added queens for single colours: ", added_queens)  # Print the positions of added queens
 
-    # Call fill in crosses for single queen
-    for row,col in added_queens:
-        game1.fill_in_crosses_for_single_queen(row, col)
 
     # Call count_entries_per_colour method
     game1.count_entries_per_colour(print_counts=True)  # Count entries per colour and print the counts
     
     # Call add_crosses_after_full_row_or_column method
-    success = game1.add_crosses_after_full_row_or_column(print_values=True)  # Add crosses after checking for full rows or columns
-    print ("Success of adding crosses after full row or column check: ", success)  # Print success status
- 
-    # Call fill_in_single_colour_squares method
-    added_queens = game1.fill_in_single_colour_squares()  # Fill in single colour squares
-    if(added_queens != []):
-        print("Added queens for single colours: ", added_queens)  # Print success status
+    #success = game1.add_crosses_after_full_row_or_column(print_values=True)  # Add crosses after checking for full rows or columns
+    #print ("Success of adding crosses after full row or column check: ", success)  # Print success status
+
+    # Call add_crosses_per_colour_if_single_queen(self,print_values=False): method
+    #success = game1.add_crosses_per_colour_if_single_queen(print_values=True)  # Fill in single colour squares
+    #if(success):
+    #    print("Added crosses for single queens per colour")
 
     # Call check for colours limited to single row or column method
     game1.check_for_colours_limited_to_single_row_or_column(print_values=True)
@@ -460,7 +465,20 @@ def main():
     
     # Visualize the board state
     game1.visualize_board()  # Visualize the board with queens and crosses
+
+    # Pause 5 seconds
+    time.sleep(5)
+
+    # Call check_if_all_squares_should_get_crossed method
+    all_crossed = game1.check_if_all_squares_should_get_crossed()
+    print("All squares that were crossed: ", all_crossed)  # Print if all squares should get crossed
     
+    # Visualize the board state
+    game1.visualize_board()  # Visualize the board with queens and crosses
+
+    # Pause 5 seconds
+    time.sleep(5)
+        
     # Print the queen and colour maps
     game1.print_queen_map()  # Print the queen map
     game1.print_colour_map()  # Print the colour map
