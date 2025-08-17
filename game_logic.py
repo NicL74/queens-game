@@ -1,3 +1,4 @@
+from time import time
 import numpy as np
 import matplotlib.pyplot as plt
 import colour_maps  # Assuming colour_maps.py is in the same directory
@@ -26,8 +27,8 @@ class Game(object):
         self.colour_map = colour_maps.colour_map_8_1  # Load a predefined colour map
         # If you want to use a different colour map, you can change this line
         # For example, to use colour_map_8_2 or colour_map_8_3, you can uncomment the following lines:
-        self.colour_map = colour_maps.colour_map_8_2
-        self.colour_map = colour_maps.colour_map_8_3
+        #self.colour_map = colour_maps.colour_map_8_2
+        #self.colour_map = colour_maps.colour_map_8_3
         # Convert the colour map to integers for consistency
         self.colour_map = self.colour_map.astype(int)
         # Initialize the queen map to zeros
@@ -81,7 +82,9 @@ class Game(object):
         plt.xticks(np.arange(board_size), np.arange(1, board_size + 1))
         plt.yticks(np.arange(board_size), np.arange(1, board_size + 1))
         plt.grid(False)
+        plt.ion()
         plt.show()  
+        plt.pause(1)
         
     # Function to count haw many entries in the colour_map are equal to each value 0 to board_size-1
     def count_colours(self,print_counts=False):
@@ -130,6 +133,8 @@ class Game(object):
 
     # Function to check which colours have only one queen and then add to every other square of that colour
     def check_single_queen_per_colour(self,print_values=False): 
+        # Create array of row, col values for any queens added
+        queen_positions = []
         # Check if the queen_map is empty
         #if np.all(self.queen_map == 0):
         #    raise ValueError("Queen map is empty. Please load a board state first.")
@@ -149,9 +154,10 @@ class Game(object):
                     row, col = square
                     if self.queen_map[row, col] == 0:  # Only set if the square is empty
                         self.queen_map[row, col] = 2  # Set to cross state
+                        queen_positions.append((row, col))
         if print_values:
             print("Final queen map after checking single queens per colour:\n", self.queen_map) 
-        return      
+        return queen_positions     
         
     # Function to fill in all crosses for a single queen just been added
     def fill_in_crosses_for_single_queen(self, queen_location, print_values=False):
@@ -206,8 +212,8 @@ class Game(object):
             return None
     
     def fill_in_single_colour_squares(self):
-        # Set success flag
-        success = False
+        # Create array of row, col values for any queens added
+        queen_positions = []
         # Find all squares that are empty and have a single colour in the colour_map
         for i in range(board_size):
             for j in range(board_size):
@@ -216,7 +222,9 @@ class Game(object):
                     if np.sum(self.colour_map[i, j] == self.colour_map) == 1:
                         self.queen_map[i, j] = 1  # Set to queen state
                         success = True
-        return success
+                        queen_positions.append((i, j))
+        return queen_positions
+    
         
     def add_crosses_after_full_row_or_column(self, print_values=False):
         # Set success flag
@@ -274,7 +282,81 @@ class Game(object):
         else:
             pass
         return success
-     
+
+    def check_for_colours_limited_to_single_row_or_column(self, print_values=False):
+        # Step through all the colours  
+        for colour in range(board_size):
+            # Create an array containing 1 where the colour is present and queen_map is 0 and zero otherwise    
+            pass
+    # Function to create a 'queen kernal function' shadow mask
+    # i.e. binary matrix where 1s represent squares that are threatened by a queen at (row, col)
+    def create_qkf_shadow_mask(self, row, col):
+        mask = np.zeros_like(self.queen_map)
+        # Threaten all squares in the same row and column
+        mask[row, :] = 1
+        mask[:, col] = 1
+        # Threaten all squares within 1 square
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                if 0 <= row + i < board_size and 0 <= col + j < board_size:
+                    mask[row + i, col + j] = 1
+        return mask.astype(int)
+
+    def get_all_empty_squares_of_colour(self, colour):
+        empty_squares = np.zeros_like(self.queen_map)
+        for r in range(board_size):
+            for c in range(board_size):
+                if self.colour_map[r, c] == colour and self.queen_map[r, c] == 0:
+                    empty_squares[r, c] = 1
+        return empty_squares.astype(int)
+
+    def check_if_square_should_get_crossed(self, row, col, print_values=False):
+        # Get colour of current square
+        my_colour = self.colour_map[row, col]
+        # Create qkf_mask
+        qkf_mask = self.create_qkf_shadow_mask(row, col)
+        if print_values:
+            print(f"Queen Kernel Function Shadow Mask for ({row}, {col}):")
+            print(qkf_mask)
+        # Run through all the colours except for my_colour
+        for colour in range(board_size):
+            if colour == my_colour:
+                continue
+            # Get all empty squares of the current colour
+            empty_squares = self.get_all_empty_squares_of_colour(colour)
+            if print_values:
+                print(f"Empty squares for colour {colour}:")
+                print(empty_squares)
+            # Check if zero empty squares and return false if so
+            if np.sum(empty_squares) == 0:
+                return False
+            # Perform logical AND of the empty squares with the qkf_mask
+            affected_squares = empty_squares * qkf_mask
+            if print_values:
+                print(f"Affected squares for colour {colour}:")
+                print(affected_squares)
+            # Subtract affected squares from empty squares and sum the result               
+            diff = np.sum(affected_squares - empty_squares)
+            if print_values:
+                print(f"Difference for colour {colour}: {diff}")
+            if diff == 0:
+                print(f"Square ({row}, {col}) should get crossed for colour {colour}")
+                return True
+        return False
+
+    def check_if_all_squares_should_get_crossed(self):
+        crossed = False
+        # Check all squares on the board
+        for row in range(board_size):
+            for col in range(board_size):
+                # Check if the square is empty
+                if self.queen_map[row, col] == 0:
+                    if self.check_if_square_should_get_crossed(row, col, print_values=False):
+                        # Put a cross in that square
+                        self.queen_map[row, col] = 2  # Set to cross state
+                        crossed = True
+        return crossed
+
     def print_queen_map(self):
         print("Queen Map:")
         for row in self.queen_map:
@@ -306,8 +388,28 @@ def main():
         #game1.set_square(1, 1, 2)  # Set square (1,1) to cross
         #game1.set_square(2, 2, 3)  # Set square (2,2) to invalid queen   
         #game1.set_square(1, 5, 1)  # Set square (0,0) to queen
+        #game1.set_square(0, 0, 2)
+        #game1.set_square(0, 1, 2)
+        #game1.set_square(0, 2, 2)   
+        
+        # Call the function to create a queen kernel function shadow mask
+        #qkf_mask = game1.create_qkf_shadow_mask(0, 0)
+        #print("Queen Kernel Function Shadow Mask:")
+        #print(qkf_mask)
+        
+        #qkf_mask = game1.create_qkf_shadow_mask(3, 1)
+        #print("Queen Kernel Function Shadow Mask:")
+        #print(qkf_mask)
+        
+        #qkf_mask = game1.create_qkf_shadow_mask(4, 4)
+        #print("Queen Kernel Function Shadow Mask:")
+        #print(qkf_mask)
+        
+        #qkf_mask = game1.create_qkf_shadow_mask(7, 4)
+        #print("Queen Kernel Function Shadow Mask:")
+        #print(qkf_mask)
         pass
-    
+        
     # Call entry counting method
     game1.count_entries(print_counts=True)  # Count entries and print the counts
     
@@ -319,9 +421,14 @@ def main():
     print("Result of full row or column check:\n", result)  # Print the result of the check
     
     # Call check for single queens per colour method
-    game1.check_single_queen_per_colour()  # Check for single queens per colour and update the queen map
-    
-    # Call count_entries_per_colour method    
+    added_queens = game1.check_single_queen_per_colour(print_values=True)  # Check for single queens per colour and update the queen map
+    print("Added queens for single colours: ", added_queens)  # Print the positions of added queens
+
+    # Call fill in crosses for single queen
+    for row,col in added_queens:
+        game1.fill_in_crosses_for_single_queen(row, col)
+
+    # Call count_entries_per_colour method
     game1.count_entries_per_colour(print_counts=True)  # Count entries per colour and print the counts
     
     # Call add_crosses_after_full_row_or_column method
@@ -329,19 +436,37 @@ def main():
     print ("Success of adding crosses after full row or column check: ", success)  # Print success status
  
     # Call fill_in_single_colour_squares method
-    success = game1.fill_in_single_colour_squares()  # Fill in single colour squares
-    print("Success of filling in single colour squares: ", success)  # Print success status
-       
+    added_queens = game1.fill_in_single_colour_squares()  # Fill in single colour squares
+    if(added_queens != []):
+        print("Added queens for single colours: ", added_queens)  # Print success status
+
+    # Call check for colours limited to single row or column method
+    game1.check_for_colours_limited_to_single_row_or_column(print_values=True)
+
+    # Call check_if_all_squares_should_get_crossed method
+    all_crossed = game1.check_if_all_squares_should_get_crossed()
+    print("All squares that were crossed: ", all_crossed)  # Print if all squares should get crossed
+    
+    # Visualize the board state
+    game1.visualize_board()  # Visualize the board with queens and crosses
+
+    # Pause 2 seconds
+    import time
+    time.sleep(2)
+
+    # Call check_if_all_squares_should_get_crossed method
+    all_crossed = game1.check_if_all_squares_should_get_crossed()
+    print("All squares that were crossed: ", all_crossed)  # Print if all squares should get crossed
+    
     # Visualize the board state
     game1.visualize_board()  # Visualize the board with queens and crosses
     
     # Print the queen and colour maps
     game1.print_queen_map()  # Print the queen map
     game1.print_colour_map()  # Print the colour map
-   
-    
-            
-    
+
+
+
 if __name__ == "__main__":
     main()  
     
